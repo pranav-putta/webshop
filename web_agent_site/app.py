@@ -58,6 +58,7 @@ def index(session_id):
            goals, weights, user_sessions
 
     if search_engine is None:
+        print("Loading products and initializing search engine")
         all_products, product_item_dict, product_prices, attribute_to_asins = \
             load_products(
                 filepath=DEFAULT_FILE_PATH,

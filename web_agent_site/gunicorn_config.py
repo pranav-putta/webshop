@@ -1,9 +1,9 @@
 import os
 
-workers = 10
-threads = 10
+workers = 25
+threads = 50
 
-bind = "0.0.0.0:3002"
+bind = "0.0.0.0:3000"
 
 forward_allow_ips = '*'
 secure_scheme_headers = {'X-Forwarded-Proto': 'https'}
