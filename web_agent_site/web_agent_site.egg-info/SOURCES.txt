@@ -1,0 +1,15 @@
+setup.cfg
+setup.py
+engine/__init__.py
+engine/engine.py
+engine/goal.py
+engine/normalize.py
+envs/__init__.py
+envs/web_agent_site_env.py
+envs/web_agent_text_env.py
+models/__init__.py
+models/models.py
+web_agent_site.egg-info/PKG-INFO
+web_agent_site.egg-info/SOURCES.txt
+web_agent_site.egg-info/dependency_links.txt
+web_agent_site.egg-info/top_level.txt

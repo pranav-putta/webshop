@@ -1,4 +1,5 @@
 import argparse, json, logging, random
+import time
 from pathlib import Path
 from ast import literal_eval
 
@@ -48,6 +49,8 @@ def home():
 
 @app.route('/<session_id>', methods=['GET', 'POST'])
 def index(session_id):
+    print(f"Resetting with Session ID: {session_id}")
+    start = time.time()
     global user_log_dir
     global all_products, product_item_dict, \
            product_prices, attribute_to_asins, \
@@ -97,6 +100,9 @@ def index(session_id):
             url=request.url,
             goal=user_sessions[session_id]['goal'],
         )))
+
+    end = time.time()
+    print(f"Done resetting with Session ID: {session_id} in {end-start:.2f}s")
     return map_action_to_html(
         'start',
         session_id=session_id,
@@ -109,6 +115,8 @@ def index(session_id):
     methods=['GET', 'POST']
 )
 def search_results(session_id, keywords, page):
+    print(f"Search Results for Session ID: {session_id}")
+    start = time.time()
     instruction_text = user_sessions[session_id]['goal']['instruction_text']
     page = convert_web_app_string_to_var('page', page)
     keywords = convert_web_app_string_to_var('keywords', keywords)
@@ -140,6 +148,8 @@ def search_results(session_id, keywords, page):
             page=page,
         )
     )))
+    end = time.time()
+    print(f"Done Search Results for Session ID: {session_id} in {end-start:.2f}s")
     return html
 
 
@@ -148,6 +158,8 @@ def search_results(session_id, keywords, page):
     methods=['GET', 'POST']
 )
 def item_page(session_id, asin, keywords, page, options):
+    print(f"Item Page for Session ID: {session_id}")
+    start = time.time()
     options = literal_eval(options)
     product_info = product_item_dict[asin]
 
@@ -177,6 +189,8 @@ def item_page(session_id, asin, keywords, page, options):
             options=options,
         )
     )))
+    end = time.time()
+    print(f"Done Item Page for Session ID: {session_id} in {end-start:.2f}s")
     return html
 
 
@@ -185,6 +199,8 @@ def item_page(session_id, asin, keywords, page, options):
     methods=['GET', 'POST']
 )
 def item_sub_page(session_id, asin, keywords, page, sub_page, options):
+    print(f"Item Sub Page for Session ID: {session_id}")
+    start = time.time()
     options = literal_eval(options)
     product_info = product_item_dict[asin]
 
@@ -213,11 +229,15 @@ def item_sub_page(session_id, asin, keywords, page, sub_page, options):
             options=options,
         )
     )))
+    end = time.time()
+    print(f"Done Item Sub Page for Session ID: {session_id} in {end-start:.2f}s")
     return html
 
 
 @app.route('/done/<session_id>/<asin>/<options>', methods=['GET', 'POST'])
 def done(session_id, asin, options):
+    print(f"Done for Session ID: {session_id}")
+    start = time.time()
     options = literal_eval(options)
     goal = user_sessions[session_id]['goal']
     purchased_product = product_item_dict[asin]
@@ -249,6 +269,8 @@ def done(session_id, asin, options):
     )))
     del logging.root.manager.loggerDict[session_id]
     
+    end = time.time()
+    print(f"Done Done for Session ID: {session_id} in {end-start:.2f}s")
     return map_action_to_html(
         f'click[{END_BUTTON}]',
         session_id=session_id,

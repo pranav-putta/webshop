@@ -22,3 +22,4 @@ torch==1.11.0
 tqdm==4.64.0
 train==0.0.5
 transformers==4.19.2
+typing-extensions==4.5.0
