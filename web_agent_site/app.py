@@ -1,4 +1,5 @@
 import argparse, json, logging, random
+import redis
 import time
 from pathlib import Path
 from ast import literal_eval
@@ -39,9 +40,22 @@ attribute_to_asins = None
 goals = None
 weights = None
 
-user_sessions = dict()
+# user_sessions = dict()
 user_log_dir = None
 SHOW_ATTRS_TAB = False
+
+import redis
+conn = redis.Redis(host='localhost', port=6380, db=0)
+
+def exists_session_id(session_id):
+    return conn.get(session_id) is not None
+
+def set_user_session(session_id, value:dict ):
+    conn.set(session_id, json.dumps(value))
+
+def get_user_session(session_id):
+    return json.loads(conn.get(session_id))
+    
 
 @app.route('/')
 def home():
@@ -55,7 +69,7 @@ def index(session_id):
     global all_products, product_item_dict, \
            product_prices, attribute_to_asins, \
            search_engine, \
-           goals, weights, user_sessions
+           goals, weights 
 
     if search_engine is None:
         print("Loading products and initializing search engine")
@@ -70,21 +84,21 @@ def index(session_id):
         random.shuffle(goals)
         weights = [goal['weight'] for goal in goals]
 
-    if session_id not in user_sessions and 'fixed' in session_id:
+    if not exists_session_id(session_id) and 'fixed' in session_id:
         goal_dix = int(session_id.split('_')[-1])
         goal = goals[goal_dix]
         instruction_text = goal['instruction_text']
-        user_sessions[session_id] = {'goal': goal, 'done': False}
+        set_user_session(session_id, {'goal': goal, 'done': False})
         if user_log_dir is not None:
             setup_logger(session_id, user_log_dir)
-    elif session_id not in user_sessions:
+    elif not exists_session_id(session_id):
         goal = random.choices(goals, weights)[0]
         instruction_text = goal['instruction_text']
-        user_sessions[session_id] = {'goal': goal, 'done': False}
+        set_user_session(session_id, {'goal': goal, 'done': False})
         if user_log_dir is not None:
             setup_logger(session_id, user_log_dir)
     else:
-        instruction_text = user_sessions[session_id]['goal']['instruction_text']
+        instruction_text = get_user_session(session_id)['goal']['instruction_text']
 
     if request.method == 'POST' and 'search_query' in request.form:
         keywords = request.form['search_query'].lower().split(' ')
@@ -99,7 +113,7 @@ def index(session_id):
         logger.info(json.dumps(dict(
             page='index',
             url=request.url,
-            goal=user_sessions[session_id]['goal'],
+            goal=get_user_session(session_id)['goal'],
         )))
 
     end = time.time()
@@ -118,7 +132,7 @@ def index(session_id):
 def search_results(session_id, keywords, page):
     print(f"Search Results for Session ID: {session_id}")
     start = time.time()
-    instruction_text = user_sessions[session_id]['goal']['instruction_text']
+    instruction_text = get_user_session(session_id)['goal']['instruction_text']
     page = convert_web_app_string_to_var('page', page)
     keywords = convert_web_app_string_to_var('keywords', keywords)
     top_n_products = get_top_n_product_from_keywords(
@@ -142,7 +156,7 @@ def search_results(session_id, keywords, page):
     logger.info(json.dumps(dict(
         page='search_results',
         url=request.url,
-        goal=user_sessions[session_id]['goal'],
+        goal=get_user_session(session_id)['goal'],
         content=dict(
             keywords=keywords,
             search_result_asins=[p['asin'] for p in products],
@@ -164,7 +178,7 @@ def item_page(session_id, asin, keywords, page, options):
     options = literal_eval(options)
     product_info = product_item_dict[asin]
 
-    goal_instruction = user_sessions[session_id]['goal']['instruction_text']
+    goal_instruction = get_user_session(session_id)['goal']['instruction_text']
     product_info['goal_instruction'] = goal_instruction
 
     html = map_action_to_html(
@@ -182,7 +196,7 @@ def item_page(session_id, asin, keywords, page, options):
     logger.info(json.dumps(dict(
         page='item_page',
         url=request.url,
-        goal=user_sessions[session_id]['goal'],
+        goal=get_user_session(session_id)['goal'],
         content=dict(
             keywords=keywords,
             page=page,
@@ -205,7 +219,7 @@ def item_sub_page(session_id, asin, keywords, page, sub_page, options):
     options = literal_eval(options)
     product_info = product_item_dict[asin]
 
-    goal_instruction = user_sessions[session_id]['goal']['instruction_text']
+    goal_instruction = get_user_session(session_id)['goal']['instruction_text']
     product_info['goal_instruction'] = goal_instruction
 
     html = map_action_to_html(
@@ -222,7 +236,7 @@ def item_sub_page(session_id, asin, keywords, page, sub_page, options):
     logger.info(json.dumps(dict(
         page='item_sub_page',
         url=request.url,
-        goal=user_sessions[session_id]['goal'],
+        goal=get_user_session(session_id)['goal'],
         content=dict(
             keywords=keywords,
             page=page,
@@ -240,7 +254,7 @@ def done(session_id, asin, options):
     print(f"Done for Session ID: {session_id}")
     start = time.time()
     options = literal_eval(options)
-    goal = user_sessions[session_id]['goal']
+    goal = get_user_session(session_id)['goal']
     purchased_product = product_item_dict[asin]
     price = product_prices[asin]
 
@@ -251,9 +265,11 @@ def done(session_id, asin, options):
         options=options,
         verbose=True
     )
-    user_sessions[session_id]['done'] = True
-    user_sessions[session_id]['reward'] = reward
-    print(user_sessions)
+    new_user_session = get_user_session(session_id)
+    new_user_session['done'] = True
+    new_user_session['reward'] = reward
+    set_user_session(session_id, new_user_session)
+    # print(user_sessions)
 
     logger = logging.getLogger(session_id)
     logger.info(json.dumps(dict(
@@ -282,7 +298,7 @@ def done(session_id, asin, options):
         query=purchased_product['query'],
         category=purchased_product['category'],
         product_category=purchased_product['product_category'],
-        goal_attrs=user_sessions[session_id]['goal']['attributes'],
+        goal_attrs=get_user_session(session_id)['goal']['attributes'],
         purchased_attrs=purchased_product['Attributes'],
         goal=goal,
         mturk_code=generate_mturk_code(session_id),
