@@ -1,7 +1,7 @@
 import os
 
 workers = 25
-threads = 50
+threads = 1
 
 bind = "0.0.0.0:3000"
 
