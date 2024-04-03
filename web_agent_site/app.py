@@ -87,7 +87,7 @@ def index(session_id):
 
     if not exists_session_id(session_id) and 'fixed' in session_id:
         goal_dix = int(session_id.split('_')[-1])
-        goal = goals[goal_dix] % len(goals)
+        goal = goals[goal_dix % len(goals)]
         instruction_text = goal['instruction_text']
         set_user_session(session_id, {'goal': goal, 'done': False})
         if user_log_dir is not None:
