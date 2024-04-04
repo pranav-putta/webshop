@@ -41,6 +41,8 @@ goals = None
 weights = None
 
 # user_sessions = dict()
+
+random.seed(223)
 user_log_dir = None
 SHOW_ATTRS_TAB = False
 
